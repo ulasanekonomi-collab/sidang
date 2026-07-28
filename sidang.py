@@ -1,25 +1,47 @@
+import io
 import streamlit as st
 import pandas as pd
 from datetime import date
+from docx import Document
 
-# Konfigurasi Halaman Streamlit
-st.set_page_config(
-    page_title="Input Nilai Sidang Skripsi - UNISBA",
-    page_icon="🎓",
-    layout="centered"
-)
+# --- FUNKSI PENGGANTI PLACEHOLDER WORD ---
+def generate_docx(template_path, replacements):
+    doc = Document(template_path)
+    
+    # Ganti placeholder di paragraf biasa
+    for p in doc.paragraphs:
+        for key, val in replacements.items():
+            if key in p.text:
+                p.text = p.text.replace(key, str(val))
+                
+    # Ganti placeholder di dalam tabel
+    for table in doc.tables:
+        for row in table.rows:
+            for cell in row.cells:
+                for p in cell.paragraphs:
+                    for key, val in replacements.items():
+                        if key in p.text:
+                            p.text = p.text.replace(key, str(val))
+                            
+    # Simpan ke memory buffer (tanpa perlu buat file temporary di server)
+    bio = io.BytesIO()
+    doc.save(bio)
+    bio.seek(0)
+    return bio
 
-# Header Instansi
+# --- LAYOUT STREAMLIT ---
+st.set_page_config(page_title="Form Nilai Sidang UNISBA", page_icon="🎓", layout="centered")
+
 st.markdown("""
 <div style="text-align: center;">
     <h3>PROGRAM STUDI EKONOMI PEMBANGUNAN</h3>
     <h4>FAKULTAS EKONOMI DAN BISNIS UNISBA</h4>
     <hr style="border: 1px solid #1E3A8A; margin-bottom: 20px;">
-    <h3 style="color: #1E3A8A;">NILAI UJIAN SKRIPSI KOMPREHENSIF</h3>
+    <h3 style="color: #1E3A8A;">INPUT & CETAK FORMILIR NILAI SIDANG</h3>
 </div>
 """, unsafe_allow_html=True)
 
-# --- FORM IDENTITAS ---
+# Form Identitas
 st.subheader("📋 Identitas Ujian")
 col1, col2 = st.columns(2)
 
@@ -29,7 +51,7 @@ with col1:
 
 with col2:
     nama_penguji = st.text_input("Nama Penguji", value="Yuhka Sundaya, SE., M.Si.")
-    tgl_sidang = st.date_input("Tanggal Ujian", value=date.today())
+    tgl_sidang = st.date_input("Tanggal Ujian", value=date(2026, 7, 29))
 
 judul_skripsi = st.text_area(
     "Judul Skripsi", 
@@ -39,98 +61,75 @@ judul_skripsi = st.text_area(
 
 st.divider()
 
-# --- PENILAIAN ---
-st.subheader("📊 Kriteria Penilaian")
+# Penilaian
+st.subheader("📊 Penilaian Ujian")
 
-col_nilai1, col_nilai2, col_nilai3 = st.columns([3, 2, 2])
+col_n1, col_n2, col_n3 = st.columns([3, 2, 2])
 
-with col_nilai1:
+with col_n1:
     st.write("**Kriteria**")
     st.write("1. Penyajian (Presentasi)")
     st.write("2. Metodologi")
     st.write("3. Materi")
 
-with col_nilai2:
+with col_n2:
     st.write("**Bobot**")
     st.write("20%")
     st.write("30%")
     st.write("50%")
 
-with col_nilai3:
-    st.write("**Nilai Angka (0-100)**")
-    val_penyajian = st.number_input("Penyajian", min_value=0.0, max_value=100.0, value=80.0, step=1.0, label_visibility="collapsed")
-    val_metodologi = st.number_input("Metodologi", min_value=0.0, max_value=100.0, value=82.0, step=1.0, label_visibility="collapsed")
-    val_materi = st.number_input("Materi", min_value=0.0, max_value=100.0, value=85.0, step=1.0, label_visibility="collapsed")
+with col_n3:
+    st.write("**Nilai (0-100)**")
+    np_val = st.number_input("Penyajian", min_value=0.0, max_value=100.0, value=80.0, step=1.0, label_visibility="collapsed")
+    nm_val = st.number_input("Metodologi", min_value=0.0, max_value=100.0, value=82.0, step=1.0, label_visibility="collapsed")
+    nk_val = st.number_input("Materi", min_value=0.0, max_value=100.0, value=85.0, step=1.0, label_visibility="collapsed")
 
-# Kalkulasi Nilai Dibobot
-bobot_penyajian = val_penyajian * 0.20
-bobot_metodologi = val_metodologi * 0.30
-bobot_materi = val_materi * 0.50
-
-total_nilai = bobot_penyajian + bobot_metodologi + bobot_materi
-status_lulus = "LULUS" if total_nilai >= 60 else "TIDAK LULUS"
-
-# Tabel Ringkasan Penilaian
-df_nilai = pd.DataFrame({
-    "No": [1, 2, 3],
-    "Kriteria Penilaian": ["Penyajian (Presentasi)", "Metodologi", "Materi"],
-    "Nilai Angka": [val_penyajian, val_metodologi, val_materi],
-    "Bobot": ["20%", "30%", "50%"],
-    "Nilai Dibobot": [f"{bobot_penyajian:.2f}", f"{bobot_metodologi:.2f}", f"{bobot_materi:.2f}"]
-})
-
-st.table(df_nilai)
-
-# Display Hasil Akhir
-col_hasil1, col_hasil2 = st.columns(2)
-with col_hasil1:
-    st.metric(label="JUMLAH NILAI (RATA-RATA DIBOBOT)", value=f"{total_nilai:.2f}")
-with col_hasil2:
-    if status_lulus == "LULUS":
-        st.success(f"STATUS: **{status_lulus}** (Minimal 60)")
-    else:
-        st.error(f"STATUS: **{status_lulus}** (Minimal 60)")
+# Hitung
+bp_val = np_val * 0.20
+bm_val = nm_val * 0.30
+bk_val = nk_val * 0.50
+total = bp_val + bm_val + bk_val
+status = "lulus" if total >= 60 else "tidak lulus"
 
 st.divider()
 
-# --- LEMBARAN REVISI DAN PERBAIKAN ---
-st.subheader("📝 Lembaran Revisi dan Perbaikan")
+# Catatan Revisi
+st.subheader("📝 Catatan Revisi")
+revisi = st.text_area("Revisi, Perbaikan, dan Catatan Skripsi", height=120)
+tgl_revisi = st.text_input("Tanggal Selesai Revisi", value=".......................2026")
 
-catatan_revisi = st.text_area(
-    "Revisi, Perbaikan, dan Catatan Skripsi", 
-    placeholder="Tuliskan poin-poin revisi/catatan penguji di sini...",
-    height=120
-)
+# Kamus nilai pengganti
+replacements = {
+    "{{NAMA}}": nama,
+    "{{NPM}}": npm,
+    "{{JUDUL}}": judul_skripsi,
+    "{{PENGUJI}}": nama_penguji,
+    "{{TANGGAL}}": tgl_sidang.strftime("%d %B %Y"),
+    "{{NP}}": f"{np_val:.1f}",
+    "{{BP}}": f"{bp_val:.2f}",
+    "{{NM}}": f"{nm_val:.1f}",
+    "{{BM}}": f"{bm_val:.2f}",
+    "{{NK}}": f"{nk_val:.1f}",
+    "{{BK}}": f"{bk_val:.2f}",
+    "{{TOTAL}}": f"{total:.2f}",
+    "{{STATUS}}": status.upper(),
+    "{{REVISI}}": revisi if revisi else "-",
+    "{{TGL_REVISI}}": tgl_revisi
+}
 
-tgl_revisi = st.text_input("Tanggal Selesai Revisi (Opsional)", value=".......................2026")
-
-# --- TOMBOL SIMPAN / EXPORT ---
 st.divider()
-if st.button("💾 Simpan Ringkasan Evaluasi", type="primary"):
-    st.balloons()
-    st.success("Data berhasil diolah dan siap diproses!")
+
+# --- TOMBOL GENERATE & DOWNLOAD ---
+try:
+    docx_file = generate_docx("template_form.docx", replacements)
     
-    # Pratinjau Output Teks Formulir
-    st.markdown("### Ringkasan Berita Acara")
-    st.code(f"""
-===================================================================
-PROGRAM STUDI EKONOMI PEMBANGUNAN - FAKULTAS EKONOMI DAN BISNIS UNISBA
-===================================================================
-NAMA           : {nama}
-NPM/NIRM       : {npm}
-JUDUL SKRIPSI  : {judul_skripsi}
-PENGUJI        : {nama_penguji}
-TANGGAL        : {tgl_sidang.strftime('%d %B %Y')}
-
-[PENILAIAN UJIAN SKRIPSI]
-1. Penyajian (20%) : {val_penyajian} -> Dibobot: {bobot_penyajian:.2f}
-2. Metodologi (30%): {val_metodologi} -> Dibobot: {bobot_metodologi:.2f}
-3. Materi (50%)    : {val_materi} -> Dibobot: {bobot_materi:.2f}-------------------------------------------------------------------
-JUMLAH NILAI TOTAL : {total_nilai:.2f}
-STATUS KELULUSAN   : {status_lulus}
-
-[CATATAN REVISI & PERBAIKAN]
-{catatan_revisi if catatan_revisi else '- Tidak ada catatan khusus -'}
-Tanggal Selesai Revisi: {tgl_revisi}
-===================================================================
-    """)
+    st.download_button(
+        label="📄 Download Form Nilai Sidang (DOCX)",
+        data=docx_file,
+        file_name=f"Form Nilai Sidang - {nama} - {npm}.docx",
+        mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        type="primary",
+        use_container_width=True
+    )
+except FileNotFoundError:
+    st.error("⚠️ File `template_form.docx` belum ditemukan di folder aplikasi. Mohon siapkan file template terlebih dahulu.")
