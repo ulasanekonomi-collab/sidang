@@ -4,32 +4,17 @@ import pandas as pd
 from datetime import date
 from docxtpl import DocxTemplate
 
-# --- FUNKSI PENGGANTI PLACEHOLDER WORD ---
-def generate_docx(template_path, replacements):
-    doc = Document(template_path)
+# --- FUNGSI GENERATE DOCX ---
+def generate_docx(template_path, context):
+    doc = DocxTemplate(template_path)
+    doc.render(context)
     
-    # Ganti placeholder di paragraf biasa
-    for p in doc.paragraphs:
-        for key, val in replacements.items():
-            if key in p.text:
-                p.text = p.text.replace(key, str(val))
-                
-    # Ganti placeholder di dalam tabel
-    for table in doc.tables:
-        for row in table.rows:
-            for cell in row.cells:
-                for p in cell.paragraphs:
-                    for key, val in replacements.items():
-                        if key in p.text:
-                            p.text = p.text.replace(key, str(val))
-                            
-    # Simpan ke memory buffer (tanpa perlu buat file temporary di server)
     bio = io.BytesIO()
     doc.save(bio)
     bio.seek(0)
     return bio
 
-# --- LAYOUT STREAMLIT ---
+# --- KONFIGURASI HALAMAN ---
 st.set_page_config(page_title="Form Nilai Sidang UNISBA", page_icon="🎓", layout="centered")
 
 st.markdown("""
@@ -37,11 +22,11 @@ st.markdown("""
     <h3>PROGRAM STUDI EKONOMI PEMBANGUNAN</h3>
     <h4>FAKULTAS EKONOMI DAN BISNIS UNISBA</h4>
     <hr style="border: 1px solid #1E3A8A; margin-bottom: 20px;">
-    <h3 style="color: #1E3A8A;">INPUT & CETAK FORMILIR NILAI SIDANG</h3>
+    <h3 style="color: #1E3A8A;">INPUT & CETAK FORMULIR NILAI SIDANG</h3>
 </div>
 """, unsafe_allow_html=True)
 
-# Form Identitas
+# --- FORM IDENTITAS ---
 st.subheader("📋 Identitas Ujian")
 col1, col2 = st.columns(2)
 
@@ -61,7 +46,7 @@ judul_skripsi = st.text_area(
 
 st.divider()
 
-# Penilaian
+# --- PENILAIAN ---
 st.subheader("📊 Penilaian Ujian")
 
 col_n1, col_n2, col_n3 = st.columns([3, 2, 2])
@@ -84,7 +69,7 @@ with col_n3:
     nm_val = st.number_input("Metodologi", min_value=0.0, max_value=100.0, value=82.0, step=1.0, label_visibility="collapsed")
     nk_val = st.number_input("Materi", min_value=0.0, max_value=100.0, value=85.0, step=1.0, label_visibility="collapsed")
 
-# Hitung
+# Perhitungan Nilai Dibobot
 bp_val = np_val * 0.20
 bm_val = nm_val * 0.30
 bk_val = nk_val * 0.50
@@ -93,28 +78,28 @@ status = "lulus" if total >= 60 else "tidak lulus"
 
 st.divider()
 
-# Catatan Revisi
+# --- CATATAN REVISI ---
 st.subheader("📝 Catatan Revisi")
 revisi = st.text_area("Revisi, Perbaikan, dan Catatan Skripsi", height=120)
 tgl_revisi = st.text_input("Tanggal Selesai Revisi", value=".......................2026")
 
-# Kamus nilai pengganti
+# --- KAMUS PLACEHOLDER (MATCH DENGAN TEMPLATE WORD) ---
 replacements = {
-    "{{NAMA}}": nama,
-    "{{NPM}}": npm,
-    "{{JUDUL}}": judul_skripsi,
-    "{{PENGUJI}}": nama_penguji,
-    "{{TANGGAL}}": tgl_sidang.strftime("%d %B %Y"),
-    "{{NP}}": f"{np_val:.1f}",
-    "{{BP}}": f"{bp_val:.2f}",
-    "{{NM}}": f"{nm_val:.1f}",
-    "{{BM}}": f"{bm_val:.2f}",
-    "{{NK}}": f"{nk_val:.1f}",
-    "{{BK}}": f"{bk_val:.2f}",
-    "{{TOTAL}}": f"{total:.2f}",
-    "{{STATUS}}": status.upper(),
-    "{{REVISI}}": revisi if revisi else "-",
-    "{{TGL_REVISI}}": tgl_revisi
+    "NAMA": nama,
+    "NPM": npm,
+    "JUDUL": judul_skripsi,
+    "PENGUJI": nama_penguji,
+    "TANGGAL": tgl_sidang.strftime("%d %B %Y"),
+    "NP": f"{np_val:.1f}",
+    "BP": f"{bp_val:.2f}",
+    "NM": f"{nm_val:.1f}",
+    "BM": f"{bm_val:.2f}",
+    "NK": f"{nk_val:.1f}",
+    "BK": f"{bk_val:.2f}",
+    "TOTAL": f"{total:.2f}",
+    "STATUS": status.upper(),
+    "REVISI": revisi if revisi else "-",
+    "TGL_REVISI": tgl_revisi
 }
 
 st.divider()
@@ -132,16 +117,6 @@ try:
         use_container_width=True
     )
 except FileNotFoundError:
-    st.error("⚠️ File `template_form.docx` belum ditemukan di folder aplikasi. Mohon siapkan file template terlebih dahulu.")
-
-def generate_docx(template_path, replacements):
-    # Menggunakan DocxTemplate (Jinja2 renderer untuk .docx)
-    doc = DocxTemplate(template_path)
-    
-    # Render semua placeholder secara presisi melintasi seluruh tabel/paragraf
-    doc.render(replacements)
-    
-    bio = io.BytesIO()
-    doc.save(bio)
-    bio.seek(0)
-    return bio
+    st.error("⚠️ File `template_form.docx` tidak ditemukan di folder GitHub. Pastikan file template Word sudah di-upload sejajar dengan `sidang.py`!")
+except Exception as e:
+    st.error(f"⚠️ Terjadi kesalahan: {e}")
