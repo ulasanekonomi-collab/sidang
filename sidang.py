@@ -133,3 +133,22 @@ try:
     )
 except FileNotFoundError:
     st.error("⚠️ File `template_form.docx` belum ditemukan di folder aplikasi. Mohon siapkan file template terlebih dahulu.")
+
+# --- TOMBOL GENERATE & DOWNLOAD ---
+st.divider()
+
+# Hanya jalankan pembuatan file saat tombol diklik atau saat dibutuhkan
+if st.checkbox("Siapkan Dokumen Hasil Sidang"):
+    try:
+        docx_file = generate_docx("template_form.docx", replacements)
+        
+        st.download_button(
+            label="📄 Download Form Nilai Sidang (DOCX)",
+            data=docx_file,
+            file_name=f"Form Nilai Sidang - {nama} - {npm}.docx",
+            mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            type="primary",
+            use_container_width=True
+        )
+    except FileNotFoundError:
+        st.error("⚠️ File `template_form.docx` tidak ditemukan di repository GitHub. Pastikan file template Word sudah di-upload ke GitHub satu folder dengan `sidang.py`!")
