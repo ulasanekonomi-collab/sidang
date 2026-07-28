@@ -2,7 +2,7 @@ import io
 import streamlit as st
 import pandas as pd
 from datetime import date
-from docx import Document
+from docxtpl import DocxTemplate
 
 # --- FUNKSI PENGGANTI PLACEHOLDER WORD ---
 def generate_docx(template_path, replacements):
@@ -135,39 +135,12 @@ except FileNotFoundError:
     st.error("⚠️ File `template_form.docx` belum ditemukan di folder aplikasi. Mohon siapkan file template terlebih dahulu.")
 
 def generate_docx(template_path, replacements):
-    doc = Document(template_path)
+    # Menggunakan DocxTemplate (Jinja2 renderer untuk .docx)
+    doc = DocxTemplate(template_path)
     
-    def replace_in_paragraphs(paragraphs):
-        for p in paragraphs:
-            for key, val in replacements.items():
-                if key in p.text:
-                    # Cek per run untuk mempertahankan sebagian format jika memungkinkan
-                    for run in p.runs:
-                        if key in run.text:
-                            run.text = run.text.replace(key, str(val))
-                    # Jika masih ada di p.text (karena terpotong run), timpa langsung paragrafnya
-                    if key in p.text:
-                        p.text = p.text.replace(key, str(val))
-
-    # 1. Ganti di paragraf biasa
-    replace_in_paragraphs(doc.paragraphs)
+    # Render semua placeholder secara presisi melintasi seluruh tabel/paragraf
+    doc.render(replacements)
     
-    # 2. Ganti di dalam semua tabel (seluruh baris dan kolom)
-    for table in doc.tables:
-        for row in table.rows:
-            for cell in row.cells:
-                replace_in_paragraphs(cell.paragraphs)
-                # Tangani juga tabel bersarang (jika ada)
-                for nested_table in cell.tables:
-                    for n_row in nested_table.rows:
-                        for n_cell in n_row.cells:
-                            replace_in_paragraphs(n_cell.paragraphs)
-
-    # 3. Ganti di header & footer (jika ada)
-    for section in doc.sections:
-        replace_in_paragraphs(section.header.paragraphs)
-        replace_in_paragraphs(section.footer.paragraphs)
-        
     bio = io.BytesIO()
     doc.save(bio)
     bio.seek(0)
