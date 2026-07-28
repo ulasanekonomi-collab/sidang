@@ -2,3 +2,20 @@ streamlit
 pandas
 python-docx
 docxtpl
+replacements = {
+    "NAMA": nama,
+    "NPM": npm,
+    "JUDUL": judul_skripsi,
+    "PENGUJI": nama_penguji,
+    "TANGGAL": tgl_sidang.strftime("%d %B %Y"),
+    "NP": f"{np_val:.1f}",
+    "BP": f"{bp_val:.2f}",
+    "NM": f"{nm_val:.1f}",
+    "BM": f"{bm_val:.2f}",
+    "NK": f"{nk_val:.1f}",
+    "BK": f"{bk_val:.2f}",
+    "TOTAL": f"{total:.2f}",
+    "STATUS": status.upper(),
+    "REVISI": revisi if revisi else "-",
+    "TGL_REVISI": tgl_revisi
+}
